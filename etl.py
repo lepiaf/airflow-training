@@ -91,47 +91,9 @@ def nombre_velo_nantes():
 
         return None
 
-    @task()
-    def load_to_influx(path: str):
-        import influxdb_client
-        from influxdb_client.client.write_api import SYNCHRONOUS
-        from datetime import datetime
-        from dateutil.tz import tz
-        import pandas as pd
-
-        bucket = "airflow"
-        org = "airflow"
-        token = ""
-        url = "http://influx:8086"
-        client = influxdb_client.InfluxDBClient(
-            url=url,
-            token=token,
-            org=org
-        )
-
-        df = pd.read_json(path)
-        date_data = None
-        for k, row in df.iterrows():
-            if date_data is None:
-                date_data = datetime.strptime(row["jour"], "%Y-%m-%d")
-
-            for i, count in row.items():
-                try:
-                    hour = int(i)
-                except ValueError:
-                    continue
-                date_data = date_data.replace(hour=hour, minute=0, second=0, microsecond=0,
-                                              tzinfo=tz.gettz("Europe/Paris"))
-
-                write_api = client.write_api(write_options=SYNCHRONOUS)
-
-                p = influxdb_client.Point("nombre_velo").time(date_data).field('compte', count).field('boucle_libelle', row["boucle_libelle"])
-                write_api.write(bucket=bucket, org=org, record=p)
-
     raw_file_path = fetch_data_from_nantes_api()
     reshape_file_path = reshape(raw_file_path["path_raw"], raw_file_path["init_run_id"])
     load_to_mongo(reshape_file_path)
-    load_to_influx(reshape_file_path)
 
 
 pipeline_velo_nantes = nombre_velo_nantes()
